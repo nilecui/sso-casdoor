@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or 'Portal' }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+            margin: 0;
+            padding: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        a.button {
+            display: inline-block;
+            padding: 8px 12px;
+            background: #0ea5e9;
+            color: #fff;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+
+        a.button.secondary {
+            background: #64748b;
+        }
+
+        .card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .apps {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div><strong>Casdoor SSO 门户</strong></div>
+        <nav>
+            {% if logged_in %}
+            <a class="button secondary" href="/logout">退出</a>
+            {% else %}
+            <a class="button" href="/login">登录</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+
+</html>

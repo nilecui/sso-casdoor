@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+    <h3>受保护页面（App2）</h3>
+    <p>欢迎：<strong>{{ (user.username or user.name or user.email) if user else '未知' }}</strong></p>
+    <pre>{{ token | tojson(indent=2) }}</pre>
+    <a class="button" href="/">返回</a>
+    <a class="button" href="{{ portal_url }}">返回门户</a>
+</div>
+{% endblock %}

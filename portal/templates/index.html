@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+    {% if logged_in %}
+    <p>已登录为：<strong>{{ user.username or user.name or user.email }}</strong></p>
+    {% else %}
+    <p>未登录，请点击右上角“登录”。</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>应用入口</h3>
+    <div class="apps">
+        <a class="button" href="/to/app1">进入 应用1</a>
+        <a class="button" href="/to/app2">进入 应用2</a>
+    </div>
+</div>
+{% endblock %}
