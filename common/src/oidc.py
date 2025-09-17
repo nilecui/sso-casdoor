@@ -42,14 +42,16 @@ class OIDCDiscovery:
 
 
 class OIDCClient:
-    def __init__(self, issuer: str, client_id: str, client_secret: str, redirect_uri: str) -> None:
+    def __init__(self, issuer: str, client_id: str, client_secret: str, redirect_uri: str, organization_name: str = "built-in", application_name: str = "") -> None:
         self.issuer = issuer.rstrip("/")
         self.client_id = client_id
         self.client_secret = client_secret
         self.redirect_uri = redirect_uri
+        self.organization_name = organization_name
+        self.application_name = application_name
         self.discovery = OIDCDiscovery(self.issuer)
 
-    async def build_authorize_url(self, state: str, scope: str = "openid profile email", redirect_uri: Optional[str] = None) -> str:
+    async def build_authorize_url(self, state: str, scope: str = "openid profile email", redirect_uri: Optional[str] = None, extra_params: Optional[Dict[str, Any]] = None) -> str:
         conf = await self.discovery.get_config()
         auth_endpoint = conf.get("authorization_endpoint") or f"{self.issuer}/login/oauth/authorize"
         params = {
@@ -59,6 +61,8 @@ class OIDCClient:
             "redirect_uri": redirect_uri or self.redirect_uri,
             "state": state,
         }
+        if extra_params:
+            params.update(extra_params)
         return f"{auth_endpoint}?{urlencode(params)}"
 
     async def exchange_code(self, code: str, redirect_uri: Optional[str] = None) -> Dict[str, Any]:

@@ -12,6 +12,8 @@ class BaseAppConfig:
     cookie_secure: bool
     cookie_domain: Optional[str]
     cookie_secret: str
+    organization_name: str
+    application_name: str
 
 
 def _get_env(key: str, default: Optional[str] = None) -> str:
@@ -45,6 +47,8 @@ def load_portal_config() -> BaseAppConfig:
         cookie_secure=base["cookie_secure"],
         cookie_domain=base["cookie_domain"],
         cookie_secret=base["cookie_secret"],
+        organization_name=_get_env("CASDOOR_ORGANIZATION_NAME", "built-in"),
+        application_name=_get_env("PORTAL_APPLICATION_NAME", "portal-app"),
     )
 
 
@@ -58,6 +62,8 @@ def load_app1_config() -> BaseAppConfig:
         cookie_secure=base["cookie_secure"],
         cookie_domain=base["cookie_domain"],
         cookie_secret=base["cookie_secret"],
+        organization_name=_get_env("CASDOOR_ORGANIZATION_NAME", "built-in"),
+        application_name=_get_env("APP1_APPLICATION_NAME", "app1"),
     )
 
 
@@ -71,6 +77,8 @@ def load_app2_config() -> BaseAppConfig:
         cookie_secure=base["cookie_secure"],
         cookie_domain=base["cookie_domain"],
         cookie_secret=base["cookie_secret"],
+        organization_name=_get_env("CASDOOR_ORGANIZATION_NAME", "built-in"),
+        application_name=_get_env("APP2_APPLICATION_NAME", "app2"),
     )
 
 

@@ -8,19 +8,57 @@ from fastapi.templating import Jinja2Templates
 
 from common.src.config import load_app1_config
 from common.src.oidc import OIDCClient
+from itsdangerous import URLSafeSerializer, BadSignature
+from .session import SessionManager
 
 
 app = FastAPI(title="App1")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "..", "templates"))
 
 _cfg = load_app1_config()
-_oidc = OIDCClient(_cfg.issuer, _cfg.client_id, _cfg.client_secret, _cfg.redirect_uri)
+_oidc = OIDCClient(_cfg.issuer, _cfg.client_id, _cfg.client_secret, _cfg.redirect_uri, _cfg.organization_name, _cfg.application_name)
+_session = SessionManager(_cfg.cookie_secret, _cfg.cookie_secure, _cfg.cookie_domain or "", cookie_name="app1_session")
 
 
 @app.get("/")
 async def root(request: Request):
+    sess = _session.get_session(request) or {}
     portal_url = _portal_url(request)
-    return templates.TemplateResponse("index.html", {"request": request, "portal_url": portal_url})
+    
+    # 检查是否有SSO token参数
+    sso_token = request.query_params.get("sso_token")
+    
+    if sso_token:
+        # 验证SSO token
+        try:
+            user_info = await _oidc.fetch_userinfo(sso_token)
+            if user_info:
+                # Token有效，保存用户会话
+                user = {
+                    "username": user_info.get("username") or user_info.get("preferred_username"),
+                    "name": user_info.get("name"),
+                    "email": user_info.get("email"),
+                    "sub": user_info.get("sub"),
+                }
+                
+                response = templates.TemplateResponse("protected.html", {
+                    "request": request, 
+                    "portal_url": portal_url, 
+                    "user": user
+                })
+                _session.set_session(response, {"user": user, "access_token": sso_token})
+                print(f"SSO Token验证成功，用户: {user.get('username')}")
+                return response
+        except Exception as e:
+            print(f"SSO Token验证失败: {e}")
+            # Token无效，继续正常流程
+    
+    if sess.get("user"):
+        # 已登录，显示受保护页面
+        return templates.TemplateResponse("protected.html", {"request": request, "portal_url": portal_url, "user": sess.get("user")})
+    else:
+        # 未登录，显示登录页面
+        return templates.TemplateResponse("index.html", {"request": request, "portal_url": portal_url})
 
 
 def _abs_callback_url(request: Request, path: str) -> str:
@@ -49,19 +87,59 @@ async def login(request: Request):
 
 
 @app.get("/callback")
-async def callback(request: Request, code: Optional[str] = None, state: Optional[str] = None):
+async def callback(request: Request, code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    # 如果静默免登失败（如 login_required），回退到标准授权
+    if error:
+        print(f"OAuth错误: {error}")
+        redirect_uri = _abs_callback_url(request, "/callback")
+        url = await _oidc.build_authorize_url(secrets.token_urlsafe(16), redirect_uri=redirect_uri)
+        return RedirectResponse(url)
+    
     if not code:
+        print("未收到授权码")
         return RedirectResponse("/")
+    
+    # 兼容性校验 state（若为门户签名则校验，否则忽略）
+    if state:
+        try:
+            s = URLSafeSerializer(_cfg.client_secret, salt="oidc-state")
+            state_data = s.loads(state)
+            print(f"State验证成功: {state_data}")
+        except BadSignature:
+            print("State验证失败，但继续处理")
+            pass
+    
     redirect_uri = _abs_callback_url(request, "/callback")
     token = await _oidc.exchange_code(code, redirect_uri=redirect_uri)
     access_token = token.get("access_token")
     user = {}
+    
     if access_token:
         try:
-            user = await _oidc.fetch_userinfo(access_token)
-        except Exception:
+            info = await _oidc.fetch_userinfo(access_token)
+            user = {
+                "username": info.get("username") or info.get("preferred_username"),
+                "name": info.get("name"),
+                "email": info.get("email"),
+                "sub": info.get("sub"),
+            }
+            print(f"用户信息获取成功: {user}")
+        except Exception as e:
+            print(f"获取用户信息失败: {e}")
             user = {}
-    portal_url = _portal_url(request)
-    return templates.TemplateResponse("protected.html", {"request": request, "user": user, "token": token, "portal_url": portal_url})
+    
+    # 写入会话并回到主页
+    response = RedirectResponse("/")
+    # 仅保存轻量信息
+    _session.set_session(response, {"user": user})
+    print(f"用户登录成功，重定向到主页")
+    return response
+
+
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/")
+    _session.clear_session(response)
+    return response
 
 
